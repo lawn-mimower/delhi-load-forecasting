@@ -1,0 +1,24 @@
+{
+  "pytorch_version": "2.5.1",
+  "cuda_available": true,
+  "cuda_version": "12.1",
+  "device_name": "NVIDIA GeForce RTX 4070 SUPER",
+  "training_time": 28.675870418548584,
+  "best_val_loss": 0.00028426346118347003,
+  "final_metrics": {
+    "arima": {
+      "Model": "ARIMA",
+      "RMSE (MW)": 94.81,
+      "MAE (MW)": 51.64,
+      "MAPE (%)": 1.35,
+      "Valid Samples": "3507/3507"
+    },
+    "lstm": {
+      "Model": "PyTorch LSTM",
+      "RMSE (MW)": 105.11,
+      "MAE (MW)": 78.59,
+      "MAPE (%)": 2.12,
+      "Valid Samples": "3507/3507"
+    }
+  }
+}
