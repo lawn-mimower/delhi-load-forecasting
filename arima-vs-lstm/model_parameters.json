@@ -1,0 +1,24 @@
+{
+  "ARIMA": {
+    "order": [
+      1,
+      1,
+      1
+    ],
+    "seasonal_order": [
+      1,
+      1,
+      1,
+      24
+    ],
+    "AIC": Infinity,
+    "model_type": null,
+    "timeout_occurred": true
+  },
+  "LSTM": {
+    "lookback": 60,
+    "units": 50,
+    "epochs_trained": 20,
+    "best_val_loss": 0.0002689989923965186
+  }
+}
