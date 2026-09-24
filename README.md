@@ -25,7 +25,12 @@ Both are spelled out below.
 - `GPU_Optimized_ARIMA_LSTM.ipynb`: a TensorFlow variant.
   - Fixed SARIMA(1,1,1)(1,1,1,24) on the last 5,000 training hours.
   - A two-layer LSTM with mixed precision on the GPU, falling back to CPU.
-- `ARIMA_vs_LSTM_OnePager.md`: a draft write-up of the study. Its numbers are not reproduced (see Results).
+- `ARIMA_vs_LSTM_OnePager.md`: a one-page write-up of the study. Its numbers come from the script below.
+- `evaluate_onepager_claims.py`: re-runs the one-pager's numbers on the full data, under two protocols:
+  - the notebook's own protocol;
+  - a like-for-like rolling-origin evaluation, where both models forecast 1–24 hours ahead from the same hours.
+
+  It also scores seasonal-naive and persistence baselines, and runs several LSTM seeds. It writes `results/onepager_claims.json` and `results/onepager_claims.md`.
 - `check_gpu_setup.py`: checks the NVIDIA driver, CUDA, cuDNN and TensorFlow GPU support, and whether CuPy, Numba and PyTorch are installed. If anything is missing it writes, but does not run, a `fix_gpu_setup.sh` suggestion script.
 
 **`model-comparisons/PyTorch_GPU_Reactive_LGBM_vs_LSTM.ipynb`** compares two one-hour-ahead models, both of which see actual past demand:
@@ -65,8 +70,11 @@ Don't mix the two files' demand columns. The weather columns in `final_modified.
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt        # versions tested (Python 3.12, CPU) are noted in the file
 
-python -m pytest tests                 # 15 offline tests; no data or GPU needed
+python -m pytest tests                 # 28 offline tests; no data or GPU needed
 python arima-vs-lstm/check_gpu_setup.py
+
+DATA_DIR=/abs/path/to/data python arima-vs-lstm/evaluate_onepager_claims.py \
+  --seeds 42,43,44,45,46 --leap-day-variant   # the one-pager's run; add --help for options
 
 cd model-comparisons                   # run notebooks from their own folder
 DATA_DIR=/abs/path/to/data TRAINING_RUN=standard \
@@ -79,7 +87,8 @@ LightGBM and PyTorch share one kernel in that notebook, and both use OpenMP. If 
 CPU run times:
 - The LightGBM vs LSTM notebook took 1–2.5 minutes on the full four years.
 - The SIH notebooks take under a minute.
-- The `auto_arima` search dominates `ARIMA_vs_LSTM_Comparison.ipynb`. On six months of data the notebook took 7.5 minutes, most of it in the first search cell, which hit its 5-minute timeout.
+- The `auto_arima` search dominates `ARIMA_vs_LSTM_Comparison.ipynb`. On six months of data the notebook took 7.5 minutes, most of it in the first search cell, which hit its 5-minute timeout. On the full training set the second search cell, which has no time limit, grew past 19 GB of RAM before finishing a model, and we stopped it.
+- `evaluate_onepager_claims.py` took 37 minutes with five LSTM seeds and the leap-day variant, most of it LSTM training (4–5.5 minutes per seed). A SARIMA fit on the full training set takes under a minute, and the script keeps memory under 5 GB.
 
 ## Results
 
@@ -99,10 +108,21 @@ The notebook's own table labels the LightGBM row "ARIMA". Its LightGBM RMSE is a
 - It scores RMSE ≈ 742 MW, with temperature by far the most important feature (≈ 0.61).
 - On the same window, the previous hour's value alone scores 227 MW.
 
-**ARIMA vs LSTM.** No figures are reported here, because the two models are evaluated differently (see issues). Read `ARIMA_vs_LSTM_OnePager.md` as a draft:
-- Its sample counts (35,040 / 31,536 / 3,504) don't match the data (35,064 / 31,557 / 3,507).
-- No notebook computes its per-period and per-horizon tables.
-- Its headline (ARIMA ahead of LSTM by 4.5% RMSE) has not been reproduced.
+**ARIMA vs LSTM.** These are from `evaluate_onepager_claims.py`, with SARIMA(1,1,1)×(1,1,1)₂₄ against the notebook's Keras LSTM (seed 42). The split and test window are the same as above.
+
+| Protocol | ARIMA RMSE (MW) | LSTM RMSE (MW) | Seasonal naive RMSE (MW) |
+|---|---|---|---|
+| Notebook: ARIMA forecasts the whole test window in one go, LSTM one hour ahead from actual inputs | 860.2 | 105.9 | |
+| Like for like, 1 hour ahead (3,484 hourly origins) | 65.7 | 105.9 | 333.6 |
+| Like for like, 6 hours ahead | 246.8 | 288.9 | 333.6 |
+| Like for like, 24 hours ahead | 371.6 | 391.4 | 333.9 |
+
+- In the like-for-like evaluation, ARIMA keeps its training-set parameters and updates its state with each observed hour. The LSTM starts from the actual previous 60 hours and feeds its own predictions back.
+- ARIMA's lead is significant at 1 and 6 hours but not at 24 hours: Diebold–Mariano p < 0.001, < 0.001 and 0.39.
+- At 24 hours, repeating the same hour of the previous day beats both models.
+- Across LSTM seeds 42–46, its 24-hour RMSE ranges from 374.6 to 657.0 MW.
+
+The one-pager's draft numbers did not reproduce, so it now reports these measurements. Its draft headline had ARIMA 4.5% ahead in RMSE (341.28 vs 357.42 MW). Its sample counts of 35,040 / 31,536 / 3,504 are what you get if 29 February 2020 is dropped; the data has 35,064 / 31,557 / 3,507.
 
 ## Known issues and limitations
 
@@ -112,7 +132,7 @@ The notebook's own table labels the LightGBM row "ARIMA". Its LightGBM RMSE is a
   - An earlier plotting cell rescales columns in place (temperature × 100), so its RMSE is in hundredths of a degree.
   - The split plot still marks 2015.
 - **STL leakage in `Model Comparision.ipynb`.** STL is fitted on the whole series, test period included, and the "final" prediction adds back the true test-period trend and seasonal parts. That gives RMSE ≈ 125 MW on the full data, but trend plus seasonal alone gives ≈ 126 MW. The MLP adds almost nothing; the score comes from the test period itself.
-- **ARIMA vs LSTM is not like for like.** ARIMA forecasts the whole ~146-day test window in one go from the end of training. The LSTM predicts each hour from the actual previous 60 hours.
+- **The ARIMA vs LSTM notebook is not like for like.** ARIMA forecasts the whole ~146-day test window in one go from the end of training. The LSTM predicts each hour from the actual previous 60 hours. `evaluate_onepager_claims.py` adds a like-for-like evaluation (see Results).
 - **`GPU_Optimized_ARIMA_LSTM.ipynb` needs about four months of data** (roughly 2,900+ hourly rows). With less, its validation set is empty and it stops with `KeyError: 'val_loss'`: 2,800 rows failed and 3,000 ran. Its validation batches are the *earliest* 10% of training windows.
 - **LightGBM vs LSTM**
   - LightGBM early-stops on the test set.
@@ -125,15 +145,15 @@ The notebook's own table labels the LightGBM row "ARIMA". Its LightGBM RMSE is a
   - The committed JSON files are outputs of earlier runs, not results. Run on a copy to keep them.
 - **General limitations**
   - Models use observed weather, not weather forecasts.
-  - Each comparison is one chronological split, with no rolling-origin evaluation and no tuning beyond the notebooks' defaults.
+  - Each comparison is one chronological split with no tuning beyond the notebooks' defaults. Only the ARIMA vs LSTM re-run adds a rolling-origin evaluation.
 
 ## Repository layout
 
 ```
 sih-2024/            Smart India Hackathon 2024 notebooks (data study, XGBoost, model comparison, 2022 trial)
-arima-vs-lstm/       ARIMA vs LSTM notebooks, one-page write-up, GPU check script, saved run configs
+arima-vs-lstm/       ARIMA vs LSTM notebooks, one-page write-up and the script that re-runs it (results/), GPU check script, saved run configs
 model-comparisons/   LightGBM vs PyTorch LSTM notebook (TRAINING_RUN=standard|long)
-tests/               offline tests for check_gpu_setup.py and the TRAINING_RUN option
+tests/               offline tests for check_gpu_setup.py, the TRAINING_RUN option and the one-pager script's helpers
 requirements.txt
 ```
 
