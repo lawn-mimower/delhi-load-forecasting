@@ -43,7 +43,9 @@ It uses CUDA with mixed precision if available. On CPU the LSTM shrinks to hidde
 
 ## Data
 
-The data is **not included**. The notebooks read from `DATA_DIR`, which defaults to `../data`: a `data/` folder at the repository root, when each notebook runs from its own folder. `Trials/` uses `../../data`, which is the same folder.
+The data is **not included**. The compiled dataset will be available on Hugging Face: **TODO: add Hugging Face dataset link** (link TBD).
+
+The notebooks read from `DATA_DIR`, which defaults to `../data`: a `data/` folder at the repository root, when each notebook runs from its own folder. `Trials/` uses `../../data`, which is the same folder.
 
 | File | Used by | Contents |
 |---|---|---|
@@ -51,7 +53,7 @@ The data is **not included**. The notebooks read from `DATA_DIR`, which defaults
 | `final_modified.csv` | `Data_Study`, `XGBonDelhi` | 8,760 hourly rows for 2023: the same weather columns plus `Hour` and `Month` |
 | `Delhi_2022_PowerVSTemp.csv` | `Trials/Untitled` | Daily 2022 rows: `Date`, `Peak Demand (in MW)`, `Minimum Temprature (in °C)`, `Maximum Temprature (in °C)` (spelling as in the file) |
 
-The weather columns (`temp`, `feelslike`, `dew`, `humidity`, `precip`, `windspeed`, `solarradiation`, `uvindex`, `conditions`, `icon`, …) have the names of a Visual Crossing weather export. The code doesn't record where the demand series came from. The XGBoost notebook originally read the 2023 file from a Kaggle input named `delhi-hourly-2023`.
+The weather columns (`temp`, `feelslike`, `dew`, `humidity`, `precip`, `windspeed`, `solarradiation`, `uvindex`, `conditions`, `icon`, …) have the names of a Visual Crossing weather export. Three of its downloads were in US units, so in 2,856 hours of `final_4year.csv` `temp`, `feelslike` and `dew` are in °F, wind in mph, `precip` in inches and `visibility` in miles: 2020-07-21 to 2020-08-30, 2021-02-11 to 2021-03-20 and 2021-08-31 to 2021-10-09. The notebooks use the columns as they are. The code doesn't record where the demand series came from. The XGBoost notebook originally read the 2023 file from a Kaggle input named `delhi-hourly-2023`.
 
 Don't mix the two files' demand columns. The weather columns in `final_modified.csv` match `final_4year.csv` for 2023 exactly. Its `Hourly Demand Met (in MW)` column, however:
 - runs from about 118,000 to 237,000, against about 1,400 to 7,300 in `final_4year.csv`;
@@ -135,4 +137,4 @@ tests/               offline tests for check_gpu_setup.py and the TRAINING_RUN o
 requirements.txt
 ```
 
-Licence: not yet specified.
+Licence: MIT — see [LICENSE](LICENSE).
