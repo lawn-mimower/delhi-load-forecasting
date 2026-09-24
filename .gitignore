@@ -1,0 +1,25 @@
+# Environments
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Data (see README for where to get it)
+data/
+DataFolder/
+*.csv
+*.xlsx
+*.xls
+
+# Model weights and run outputs
+*.pt
+*.pth
+*.h5
+*.keras
+*.joblib
+*.pkl
+*.png
+arima_search_state.json
+gpu_config.json
+fix_gpu_setup.sh
