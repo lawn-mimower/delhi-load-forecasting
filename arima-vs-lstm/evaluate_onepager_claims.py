@@ -402,17 +402,33 @@ def lstm_recursive_forecasts(model, scaled, origins, max_h: int = MAX_HORIZON) -
 # Evaluation
 # ---------------------------------------------------------------------------
 
-def rounded(obj, nd=2):
-    if isinstance(obj, dict):
-        return {k: rounded(v, nd) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [rounded(v, nd) for v in obj]
-    if isinstance(obj, (float, np.floating)):
-        obj = float(obj)
-        if not math.isfinite(obj):
-            return None
-        return float(f"{obj:.3g}") if 0 < abs(obj) < 0.01 else round(obj, nd)
-    return obj
+def to_json(obj, nd: int = 4, indent: int = 2) -> str:
+    """JSON text with every float written with nd decimals (values below 0.01 in
+    e-notation), so the file has a uniform, diff-friendly format."""
+    def enc(o, level):
+        pad, end = " " * indent * (level + 1), " " * indent * level
+        if isinstance(o, dict):
+            if not o:
+                return "{}"
+            items = [f"{pad}{json.dumps(str(k))}: {enc(v, level + 1)}" for k, v in o.items()]
+            return "{\n" + ",\n".join(items) + "\n" + end + "}"
+        if isinstance(o, (list, tuple)):
+            if not o:
+                return "[]"
+            if not any(isinstance(v, (dict, list, tuple)) for v in o):
+                return "[" + ", ".join(enc(v, level + 1) for v in o) + "]"
+            return "[\n" + ",\n".join(pad + enc(v, level + 1) for v in o) + "\n" + end + "]"
+        if o is None or isinstance(o, (bool, np.bool_)):
+            return json.dumps(None if o is None else bool(o))
+        if isinstance(o, (int, np.integer)):
+            return str(int(o))
+        if isinstance(o, (float, np.floating)):
+            x = float(o)
+            if not math.isfinite(x):
+                return "null"
+            return f"{x:.{nd}e}" if 0 < abs(x) < 0.01 else f"{x:.{nd}f}"
+        return json.dumps(o)
+    return enc(obj, 0) + "\n"
 
 
 def literal_protocol(y, index, n_train, arima_res, lstm_pred_1step) -> dict:
@@ -744,7 +760,7 @@ def markdown_report(r: dict) -> str:
     add("| Pair | DM stat | p-value |")
     add("|---|---|---|")
     for k, v in lfl["diebold_mariano"].items():
-        add(f"| {k} | {fmt(v['stat'], 2)} | {v['p_value']:.2g} |")
+        add(f"| {k} | {fmt(v['stat'])} | {v['p_value']:.2g} |")
     add("")
     add("1-hour-ahead RMSE by time of day (whole test window), MW:")
     add("")
@@ -807,9 +823,7 @@ def main(argv=None):
     results["total_seconds"] = round(time.time() - t0, 1)
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    slim = dict(results)
-    # Keep the JSON readable: per-horizon curves stay, rounded to 0.01.
-    (out / "onepager_claims.json").write_text(json.dumps(rounded(slim), indent=2) + "\n", encoding="utf-8")
+    (out / "onepager_claims.json").write_text(to_json(results), encoding="utf-8")
     (out / "onepager_claims.md").write_text(markdown_report(results), encoding="utf-8")
     print(f"Wrote {out / 'onepager_claims.json'} and {out / 'onepager_claims.md'} "
           f"({results['total_seconds']} s)")

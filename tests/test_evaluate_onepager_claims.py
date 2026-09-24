@@ -136,3 +136,14 @@ def test_diebold_mariano_sign_and_degenerate_case(ev):
     assert out["stat"] < 0 and out["p_value"] < 0.01
     same = ev.diebold_mariano(e1, e1, h=1)
     assert np.isnan(same["stat"])
+
+
+def test_json_writer_uses_fixed_decimals(ev):
+    import json
+
+    obj = {"a": 3.5, "b": [1, 2.5, None], "c": {"p": 8.6e-54, "ok": True, "name": "x"}, "d": float("nan")}
+    text = ev.to_json(obj)
+    assert '"a": 3.5000' in text and "2.5000" in text and "8.6000e-54" in text
+    back = json.loads(text)
+    assert back["a"] == 3.5 and back["b"] == [1, 2.5, None] and back["c"]["ok"] is True
+    assert back["d"] is None
